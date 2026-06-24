@@ -1,0 +1,13 @@
+{
+  "name": "neon-oracle-tarot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A one-page cyber tarot reading site with Gemini-powered interpretation.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
