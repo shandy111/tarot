@@ -1,0 +1,519 @@
+:root {
+  --rose: #a24446;
+  --rose-dark: #873739;
+  --blush: #f6d9d0;
+  --paper: #f6ece1;
+  --paper-soft: #fbf7ef;
+  --line: rgba(162, 68, 70, 0.28);
+  --ink: #3b2729;
+  --muted: #9a7670;
+  --blue: #98bdc2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--ink);
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+  background:
+    linear-gradient(115deg, rgba(246, 217, 208, 0.72), rgba(246, 236, 225, 0.94)),
+    radial-gradient(circle at 80% 25%, rgba(152, 189, 194, 0.45), transparent 30%),
+    #f1e4d9;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(980px, calc(100vw - 22px));
+  height: calc(100vh - 22px);
+  margin: 11px auto;
+  display: grid;
+  grid-template-columns: 36% minmax(0, 1fr);
+  grid-template-rows: 86px 104px minmax(250px, 1fr) 212px;
+  gap: 9px;
+  background: rgba(246, 236, 225, 0.7);
+  border: 1px solid rgba(162, 68, 70, 0.16);
+  box-shadow: 0 22px 70px rgba(128, 64, 57, 0.17);
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  color: #fff8f1;
+  background: var(--rose);
+}
+
+.kicker {
+  margin: 0 0 3px;
+  color: rgba(255, 248, 241, 0.78);
+  font-size: 10px;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 27px;
+  line-height: 1;
+  letter-spacing: 1.8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+h1::before,
+h1::after {
+  content: "✦";
+  margin: 0 10px;
+  font-size: 17px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 145px 168px 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+input,
+select,
+.actions button,
+textarea {
+  outline: none;
+}
+
+input,
+select,
+.actions button {
+  height: 34px;
+  border: 1px solid rgba(255, 248, 241, 0.45);
+  color: #fff8f1;
+  background: rgba(135, 55, 57, 0.44);
+  padding: 0 10px;
+}
+
+input::placeholder {
+  color: rgba(255, 248, 241, 0.7);
+}
+
+.actions button {
+  min-width: 0;
+  border-color: rgba(255, 248, 241, 0.7);
+  background: #fff8f1;
+  color: var(--rose-dark);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.question-panel,
+.spread-panel,
+.meaning-panel,
+.ai-panel {
+  min-height: 0;
+  border: 1px solid var(--line);
+  background: rgba(251, 247, 239, 0.76);
+}
+
+.question-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+textarea {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 1px solid rgba(162, 68, 70, 0.23);
+  color: var(--ink);
+  background: rgba(255, 252, 247, 0.86);
+  padding: 12px;
+  line-height: 1.45;
+}
+
+textarea:focus,
+select:focus,
+input:focus,
+.actions button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(152, 189, 194, 0.34);
+}
+
+.spread-note {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgba(246, 217, 208, 0.46);
+  border: 1px solid rgba(162, 68, 70, 0.16);
+}
+
+.spread-note strong {
+  color: var(--rose);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.spread-note span {
+  color: #674547;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.spread-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: 35px minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(251, 247, 239, 0.84), rgba(246, 236, 225, 0.74)),
+    radial-gradient(circle at center, rgba(162, 68, 70, 0.08), transparent 52%);
+}
+
+.spread-tabs {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.spread-tab {
+  flex: 0 0 auto;
+  height: 28px;
+  border: 1px solid rgba(162, 68, 70, 0.22);
+  border-radius: 8px;
+  color: var(--rose-dark);
+  background: rgba(255, 250, 243, 0.72);
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.spread-tab.active {
+  color: #fffaf3;
+  background: var(--rose);
+  border-color: var(--rose);
+}
+
+.card-stage {
+  --card-w: clamp(62px, 8.4vw, 104px);
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.card-stage.count-1 {
+  --card-w: clamp(92px, 10vw, 126px);
+}
+
+.card-stage.count-10 {
+  --card-w: clamp(50px, 6.1vw, 78px);
+}
+
+.tarot-card {
+  position: absolute;
+  left: calc(var(--x) * 1%);
+  top: calc(var(--y) * 1%);
+  width: var(--card-w);
+  aspect-ratio: 0.585;
+  border: 0;
+  padding: 0;
+  color: #fff8f1;
+  background: transparent;
+  perspective: 900px;
+  cursor: pointer;
+  min-width: 0;
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
+.tarot-card.sideways {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.tarot-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 650ms cubic-bezier(0.2, 0.74, 0.18, 1);
+  transition-delay: var(--delay);
+}
+
+.tarot-card.revealed .tarot-card-inner {
+  transform: rotateY(180deg);
+}
+
+.tarot-card.selected {
+  filter: drop-shadow(0 0 14px rgba(152, 189, 194, 0.96));
+  z-index: 5;
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(162, 68, 70, 0.32);
+  box-shadow: 0 10px 22px rgba(80, 40, 38, 0.18);
+}
+
+.card-back {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(246, 217, 208, 0.95), rgba(246, 236, 225, 0.84)),
+    repeating-linear-gradient(90deg, transparent 0 10px, rgba(162, 68, 70, 0.1) 10px 11px);
+}
+
+.card-back::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(162, 68, 70, 0.32);
+  border-radius: 6px;
+}
+
+.back-star {
+  color: rgba(162, 68, 70, 0.52);
+  font-size: 18px;
+}
+
+.card-front {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 31px;
+  transform: rotateY(180deg);
+  background: #fffaf3;
+}
+
+.tarot-card.reversed .card-image-wrap {
+  transform: rotate(180deg);
+}
+
+.card-image-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  background:
+    linear-gradient(135deg, rgba(246, 217, 208, 0.24), rgba(152, 189, 194, 0.22)),
+    #f9efe8;
+}
+
+.card-image {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image.is-missing {
+  display: none;
+}
+
+.fallback-glyph {
+  position: absolute;
+  z-index: 1;
+  color: var(--rose);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 4vw, 52px);
+}
+
+.card-caption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  grid-template-rows: 15px 13px;
+  gap: 0 4px;
+  padding: 3px 5px 4px;
+  color: var(--ink);
+  background: rgba(255, 250, 243, 0.96);
+  border-top: 1px solid rgba(162, 68, 70, 0.16);
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.card-name,
+.position-chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.position-chip {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.orientation {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  place-self: center end;
+  min-width: 19px;
+  color: #fff;
+  background: var(--blue);
+  border-radius: 999px;
+  padding: 2px 0;
+  text-align: center;
+  font-size: 9px;
+}
+
+.meaning-panel,
+.ai-panel {
+  padding: 12px 14px;
+  overflow: hidden;
+}
+
+.meaning-panel {
+  grid-column: 1 / 2;
+}
+
+.ai-panel {
+  grid-column: 2 / 3;
+}
+
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 7px;
+  color: var(--rose);
+  font-weight: 800;
+}
+
+.panel-title small {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.meaning-content {
+  height: calc(100% - 29px);
+  overflow: auto;
+  color: #4d3537;
+  font-size: 12px;
+  line-height: 1.52;
+  scrollbar-width: thin;
+}
+
+.meaning-content strong {
+  color: var(--rose);
+}
+
+.muted {
+  color: rgba(59, 39, 41, 0.56);
+}
+
+.ai-reading {
+  height: calc(100% - 29px);
+  overflow: auto;
+  color: #2f2022;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  scrollbar-width: thin;
+}
+
+.loading {
+  color: var(--rose);
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: calc(100vw - 12px);
+    height: calc(100vh - 12px);
+    margin: 6px auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: 100px 110px minmax(230px, 1fr) 118px 190px;
+    gap: 7px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 10px 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .actions {
+    grid-template-columns: minmax(86px, 1fr) minmax(124px, 1.3fr) 62px;
+  }
+
+  input,
+  select,
+  .actions button {
+    height: 30px;
+    padding: 0 7px;
+    font-size: 12px;
+  }
+
+  .question-panel {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .spread-note {
+    display: none;
+  }
+
+  .card-stage {
+    --card-w: clamp(44px, 11vw, 64px);
+  }
+
+  .card-stage.count-10 {
+    --card-w: clamp(37px, 9vw, 50px);
+  }
+
+  .meaning-panel {
+    grid-column: 1;
+  }
+
+  .ai-panel {
+    grid-column: 1;
+  }
+
+  .meaning-content {
+    font-size: 11px;
+  }
+
+  .ai-reading {
+    font-size: 12px;
+  }
+}

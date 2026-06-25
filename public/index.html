@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Oracle Tarot</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="kicker">Neon Oracle Tarot</p>
+          <h1>赛博塔罗占卜</h1>
+        </div>
+        <div class="actions">
+          <input
+            id="apiKeyInput"
+            type="password"
+            autocomplete="off"
+            placeholder="Gemini API Key"
+            aria-label="Gemini API Key"
+          />
+          <select id="spreadSelect" aria-label="选择牌阵"></select>
+          <button id="drawButton" type="button">抽牌</button>
+        </div>
+      </header>
+
+      <section class="question-panel" aria-label="提问">
+        <textarea
+          id="questionInput"
+          maxlength="180"
+          placeholder="写下你想问的问题，例如：这段关系接下来我该怎么面对？"
+        ></textarea>
+        <div class="spread-note">
+          <strong id="spreadTitle">牌阵</strong>
+          <span id="spreadMeaning">选择一个牌阵后开始抽卡。</span>
+        </div>
+      </section>
+
+      <section class="spread-panel" aria-label="牌阵">
+        <div id="spreadTabs" class="spread-tabs" aria-label="快速选择牌阵"></div>
+        <div id="cardStage" class="card-stage"></div>
+      </section>
+
+      <section class="meaning-panel" aria-label="牌面解释">
+        <div class="panel-title">
+          <span>牌面解释</span>
+          <small id="selectedHint">抽卡后点击牌面查看</small>
+        </div>
+        <div id="cardMeaning" class="meaning-content muted">
+          问题、牌阵和牌义会在抽卡后出现。初始界面保持安静一点，把空间留给你的问题。
+        </div>
+      </section>
+
+      <section class="ai-panel" aria-label="AI解读">
+        <div class="panel-title">
+          <span>AI 解读</span>
+          <small id="aiSource">Gemini / 本地备用</small>
+        </div>
+        <div id="aiReading" class="ai-reading">
+          抽卡后会结合你的问题给出一段完整解读。
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
