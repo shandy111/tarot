@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 loadDotEnv();
 
@@ -26,6 +27,26 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/status") {
       sendJson(res, 200, { hasServerKey: Boolean(process.env.GEMINI_API_KEY) });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/feedback") {
+      await handleFeedback(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/gpt-reading") {
+      await handleGptReading(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/generate-code") {
+      await handleGenerateCode(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/list") {
+      await handleAdminList(req, res);
       return;
     }
 
@@ -64,6 +85,8 @@ server.listen(port, () => {
   console.log(`Neon Oracle Tarot is running at http://localhost:${port}`);
 });
 
+// ---------- Gemini（免费额度）----------
+
 async function handleReading(req, res) {
   const body = await readBody(req);
   let payload;
@@ -99,7 +122,8 @@ async function handleReading(req, res) {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.85,
-            maxOutputTokens: 1300
+            maxOutputTokens: 3000,
+            thinkingConfig: { thinkingBudget: 0 }
           }
         })
       });
@@ -131,6 +155,211 @@ async function handleReading(req, res) {
     });
   }
 }
+
+// ---------- 用户反馈（换免费次数）----------
+
+async function handleFeedback(req, res) {
+  const body = await readBody(req);
+  let payload;
+
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    sendJson(res, 400, { error: "请求内容不是有效 JSON" });
+    return;
+  }
+
+  const text = String(payload?.text || "").trim().slice(0, 500);
+  if (text.length <= 5) {
+    sendJson(res, 400, { error: "反馈内容太短" });
+    return;
+  }
+
+  try {
+    await redis("LPUSH", "feedback:list", JSON.stringify({ text, ts: Date.now() }));
+    await redis("LTRIM", "feedback:list", 0, 199);
+    sendJson(res, 200, { ok: true });
+  } catch (error) {
+    sendJson(res, 500, { error: `保存反馈失败：${error.message}` });
+  }
+}
+
+// ---------- GPT 付费解读（兑换码）----------
+
+async function handleGptReading(req, res) {
+  const body = await readBody(req);
+  let payload;
+
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    sendJson(res, 400, { error: "请求内容不是有效 JSON" });
+    return;
+  }
+
+  const code = String(payload?.code || "").trim().toUpperCase();
+  if (!code) {
+    sendJson(res, 400, { error: "请输入兑换码" });
+    return;
+  }
+
+  let remaining;
+  try {
+    const current = await redis("GET", `code:${code}`);
+    if (current === null || current === undefined) {
+      sendJson(res, 403, { error: "兑换码无效" });
+      return;
+    }
+    if (Number(current) <= 0) {
+      sendJson(res, 403, { error: "这个兑换码的次数已经用完了" });
+      return;
+    }
+    remaining = await redis("DECR", `code:${code}`);
+  } catch (error) {
+    sendJson(res, 500, { error: `校验兑换码失败：${error.message}` });
+    return;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    await redis("INCR", `code:${code}`).catch(() => {});
+    sendJson(res, 500, { error: "服务器还没有配置 OpenAI API Key" });
+    return;
+  }
+
+  const prompt = buildGeminiPrompt(payload);
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.85,
+        max_tokens: 1300
+      })
+    });
+
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    const finishReason = data?.choices?.[0]?.finish_reason;
+
+    if (response.ok && text) {
+      sendJson(res, 200, {
+        source: "gpt",
+        remaining,
+        text: finishReason === "length" ? `${text}\n\n（这次解读被输出长度截断了，可以重新抽牌或把问题问得更具体一点。）` : text
+      });
+      return;
+    }
+
+    await redis("INCR", `code:${code}`).catch(() => {});
+    sendJson(res, 500, { error: data?.error?.message || `HTTP ${response.status}` });
+  } catch (error) {
+    await redis("INCR", `code:${code}`).catch(() => {});
+    sendJson(res, 500, { error: `暂时无法连接 OpenAI：${error.message}` });
+  }
+}
+
+// ---------- 管理后台 ----------
+
+async function handleGenerateCode(req, res) {
+  const body = await readBody(req);
+  let payload;
+
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    sendJson(res, 400, { error: "请求内容不是有效 JSON" });
+    return;
+  }
+
+  if (!process.env.ADMIN_PASSWORD || payload?.password !== process.env.ADMIN_PASSWORD) {
+    sendJson(res, 403, { error: "密码不对" });
+    return;
+  }
+
+  const uses = Math.max(1, Math.min(50, Number(payload?.uses) || 5));
+  const code = generateCode();
+
+  try {
+    await redis("SET", `code:${code}`, uses);
+    await redis("SADD", "codes:all", code);
+    sendJson(res, 200, { code, uses });
+  } catch (error) {
+    sendJson(res, 500, { error: error.message });
+  }
+}
+
+async function handleAdminList(req, res) {
+  const body = await readBody(req);
+  let payload;
+
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    sendJson(res, 400, { error: "请求内容不是有效 JSON" });
+    return;
+  }
+
+  if (!process.env.ADMIN_PASSWORD || payload?.password !== process.env.ADMIN_PASSWORD) {
+    sendJson(res, 403, { error: "密码不对" });
+    return;
+  }
+
+  try {
+    const codeList = (await redis("SMEMBERS", "codes:all")) || [];
+    const codes = [];
+    for (const code of codeList) {
+      const remaining = await redis("GET", `code:${code}`);
+      codes.push({ code, remaining: Number(remaining) || 0 });
+    }
+    codes.sort((a, b) => b.remaining - a.remaining);
+
+    const rawFeedback = (await redis("LRANGE", "feedback:list", 0, 49)) || [];
+    const feedback = rawFeedback.map((item) => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return { text: item, ts: null };
+      }
+    });
+
+    sendJson(res, 200, { codes, feedback });
+  } catch (error) {
+    sendJson(res, 500, { error: error.message });
+  }
+}
+
+function generateCode() {
+  return "TAROT-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+// ---------- Upstash Redis（REST API）----------
+
+async function redis(...args) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    throw new Error("缺少 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN 环境变量");
+  }
+
+  const segments = args.map((part) => encodeURIComponent(String(part))).join("/");
+  const response = await fetch(`${url}/${segments}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const data = await response.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+// ---------- 通用 ----------
 
 function buildGeminiPrompt(payload) {
   const question = String(payload?.question || "未填写具体问题").slice(0, 500);
@@ -171,7 +400,7 @@ function buildLocalReading(payload, reason) {
   const reasonLine = reason ? `（AI 接口暂时不可用：${reason}，以下为本地基础解读。）\n\n` : "";
   return `${reasonLine}核心答案：这组牌更像是在提醒你先看清当下的情绪和真实需求，再决定下一步。
 
-${main.position}的「${main.cnName}」显示，问题的起点与“${main.reversed ? main.reversedMeaning : main.uprightMeaning}”有关。它不一定代表结果已经固定，而是说明你现在最需要辨认的力量。
+${main.position}的「${main.cnName}」显示，问题的起点与"${main.reversed ? main.reversedMeaning : main.uprightMeaning}"有关。它不一定代表结果已经固定，而是说明你现在最需要辨认的力量。
 
 ${tension && tension !== main ? `关键张「${tension.cnName}」带来的张力是：${tension.reversed ? tension.reversedMeaning : tension.uprightMeaning}。这部分可能是犹豫、误会、期待落差，或你没有说出口的担心。` : `这张牌的正逆位也提示你：别急着把答案推到极端，先观察事情哪里正在失衡。`}
 
