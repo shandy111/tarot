@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>塔罗后台管理</title>
+    <style>
+      :root {
+        --rose: #a24446;
+        --rose-dark: #873739;
+        --paper: #f6ece1;
+        --paper-soft: #fbf7ef;
+        --line: rgba(162, 68, 70, 0.28);
+        --ink: #3b2729;
+        --muted: #9a7670;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+        padding: 24px;
+      }
+
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+
+      .card {
+        background: var(--paper-soft);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 18px;
+      }
+
+      .card h2 {
+        font-size: 15px;
+        margin: 0 0 12px;
+        color: var(--rose);
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+
+      input[type="password"],
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 9px 18px;
+        background: var(--rose);
+        color: #fff8f1;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: transparent;
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+      }
+
+      .row > div {
+        flex: 1;
+      }
+
+      .result-code {
+        margin-top: 12px;
+        padding: 12px 14px;
+        background: #fff;
+        border: 1px dashed var(--rose);
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .error {
+        color: var(--rose-dark);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .feedback-item {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+
+      .feedback-time {
+        color: var(--muted);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>塔罗后台管理</h1>
+      <p class="muted">生成兑换码、查看用户反馈</p>
+
+      <div class="card" id="loginCard">
+        <h2>登录</h2>
+        <label for="passwordInput">管理密码</label>
+        <input id="passwordInput" type="password" autocomplete="off" />
+        <button id="loginButton" type="button">登录</button>
+        <p class="error hidden" id="loginError"></p>
+      </div>
+
+      <div id="adminPanel" class="hidden">
+        <div class="card">
+          <h2>生成兑换码</h2>
+          <div class="row">
+            <div>
+              <label for="usesInput">可用次数</label>
+              <input id="usesInput" type="number" min="1" max="50" value="5" />
+            </div>
+            <button id="generateButton" type="button">生成</button>
+          </div>
+          <div id="resultBox"></div>
+          <p class="error hidden" id="generateError"></p>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-bottom: 12px">
+            <h2 style="margin: 0">已生成的兑换码</h2>
+            <button class="secondary" id="refreshButton" type="button">刷新列表</button>
+          </div>
+          <table id="codesTable">
+            <thead>
+              <tr>
+                <th>兑换码</th>
+                <th>剩余次数</th>
+              </tr>
+            </thead>
+            <tbody id="codesBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>用户反馈（最近 50 条）</h2>
+          <div id="feedbackList"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const passwordInput = document.querySelector("#passwordInput");
+      const loginButton = document.querySelector("#loginButton");
+      const loginError = document.querySelector("#loginError");
+      const loginCard = document.querySelector("#loginCard");
+      const adminPanel = document.querySelector("#adminPanel");
+
+      const usesInput = document.querySelector("#usesInput");
+      const generateButton = document.querySelector("#generateButton");
+      const generateError = document.querySelector("#generateError");
+      const resultBox = document.querySelector("#resultBox");
+
+      const refreshButton = document.querySelector("#refreshButton");
+      const codesBody = document.querySelector("#codesBody");
+      const feedbackList = document.querySelector("#feedbackList");
+
+      let password = sessionStorage.getItem("tarotAdminPassword") || "";
+
+      if (password) {
+        tryLoad();
+      }
+
+      loginButton.addEventListener("click", () => {
+        password = passwordInput.value.trim();
+        if (!password) return;
+        tryLoad();
+      });
+
+      passwordInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") loginButton.click();
+      });
+
+      generateButton.addEventListener("click", generateCode);
+      refreshButton.addEventListener("click", loadList);
+
+      async function tryLoad() {
+        loginError.classList.add("hidden");
+        loginButton.disabled = true;
+        loginButton.textContent = "登录中";
+
+        const ok = await loadList();
+
+        loginButton.disabled = false;
+        loginButton.textContent = "登录";
+
+        if (ok) {
+          sessionStorage.setItem("tarotAdminPassword", password);
+          loginCard.classList.add("hidden");
+          adminPanel.classList.remove("hidden");
+        } else {
+          sessionStorage.removeItem("tarotAdminPassword");
+          loginError.textContent = "密码不对，或者服务器暂时连不上。";
+          loginError.classList.remove("hidden");
+        }
+      }
+
+      async function generateCode() {
+        generateError.classList.add("hidden");
+        generateButton.disabled = true;
+        generateButton.textContent = "生成中";
+
+        try {
+          const response = await fetch("/api/admin/generate-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password,
+              uses: Number(usesInput.value) || 5
+            })
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            generateError.textContent = data.error || "生成失败";
+            generateError.classList.remove("hidden");
+            return;
+          }
+
+          resultBox.innerHTML = `
+            <div class="result-code">
+              <span>${data.code}（${data.uses} 次）</span>
+              <button type="button" class="secondary" onclick="navigator.clipboard.writeText('${data.code}')">复制</button>
+            </div>
+          `;
+          await loadList();
+        } catch (error) {
+          generateError.textContent = `网络出错：${error.message}`;
+          generateError.classList.remove("hidden");
+        } finally {
+          generateButton.disabled = false;
+          generateButton.textContent = "生成";
+        }
+      }
+
+      async function loadList() {
+        try {
+          const response = await fetch("/api/admin/list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+          });
+          const data = await response.json();
+
+          if (!response.ok) return false;
+
+          codesBody.innerHTML = data.codes
+            .map(
+              (item) => `
+              <tr>
+                <td>${item.code}</td>
+                <td>${item.remaining}</td>
+              </tr>
+            `
+            )
+            .join("") || `<tr><td colspan="2">还没有生成过兑换码</td></tr>`;
+
+          feedbackList.innerHTML =
+            data.feedback
+              .map(
+                (item) => `
+              <div class="feedback-item">
+                <div>${escapeHtml(item.text)}</div>
+                <div class="feedback-time">${item.ts ? new Date(item.ts).toLocaleString("zh-CN") : ""}</div>
+              </div>
+            `
+              )
+              .join("") || `<p class="muted">还没有收到反馈</p>`;
+
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    </script>
+  </body>
+</html>

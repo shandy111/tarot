@@ -3,15 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neon Oracle Tarot</title>
+    <title>塔罗占卜</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+       <div id="coverScreen" class="cover-screen">
+      <div class="cover-stars"></div>
+      <div class="cover-card">
+        <div class="cover-moon"></div>
+        <div class="cover-orb"></div>
+        <p class="cover-kicker">问 · 卜 · 答</p>
+        <h2 class="cover-title">塔罗占卜</h2>
+        <p class="cover-tagline">
+          你此刻最想问的问题，是什么？<br />
+          牌面，已经等在那里了。
+        </p>
+        <button id="enterButton" type="button" class="cover-enter">开始占卜</button>
+      </div>
+    </div>
+
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="kicker">Neon Oracle Tarot</p>
-          <h1>赛博塔罗占卜</h1>
+          <p class="kicker">Midnight Oracle</p>
+          <h1>塔罗占卜</h1>
         </div>
         <div class="actions">
           <input
@@ -41,16 +56,7 @@
       <section class="spread-panel" aria-label="牌阵">
         <div id="spreadTabs" class="spread-tabs" aria-label="快速选择牌阵"></div>
         <div id="cardStage" class="card-stage"></div>
-      </section>
-
-      <section class="meaning-panel" aria-label="牌面解释">
-        <div class="panel-title">
-          <span>牌面解释</span>
-          <small id="selectedHint">抽卡后点击牌面查看</small>
-        </div>
-        <div id="cardMeaning" class="meaning-content muted">
-          问题、牌阵和牌义会在抽卡后出现。初始界面保持安静一点，把空间留给你的问题。
-        </div>
+        <div id="cardTooltip" class="card-tooltip" hidden></div>
       </section>
 
       <section class="ai-panel" aria-label="AI解读">
@@ -63,6 +69,13 @@
         </div>
       </section>
     </main>
+
+    <div id="gateModal" class="gate-modal" hidden>
+      <div class="gate-card">
+        <h3 id="gateTitle">提示</h3>
+        <div id="gateBody"></div>
+      </div>
+    </div>
 
     <script src="./app.js"></script>
   </body>

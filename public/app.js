@@ -201,23 +201,42 @@ const deck = [
   )
 ];
 
-const spreadSelect = document.querySelector("#spreadSelect");
-const spreadTabs = document.querySelector("#spreadTabs");
-const drawButton = document.querySelector("#drawButton");
 const apiKeyInput = document.querySelector("#apiKeyInput");
 const questionInput = document.querySelector("#questionInput");
 const spreadTitle = document.querySelector("#spreadTitle");
 const spreadMeaning = document.querySelector("#spreadMeaning");
 const cardStage = document.querySelector("#cardStage");
-const selectedHint = document.querySelector("#selectedHint");
-const cardMeaning = document.querySelector("#cardMeaning");
+const cardTooltip = document.querySelector("#cardTooltip");
+const spreadPanel = document.querySelector(".spread-panel");
 const aiReading = document.querySelector("#aiReading");
 const aiSource = document.querySelector("#aiSource");
+const gateModal = document.querySelector("#gateModal");
+const gateTitle = document.querySelector("#gateTitle");
+const gateBody = document.querySelector("#gateBody");
+const coverScreen = document.querySelector("#coverScreen");
+const enterButton = document.querySelector("#enterButton");
+
+const FREE_LIMIT_BASE = 3;
+const FREE_LIMIT_BONUS = 2;
 
 let currentCards = [];
 let selectedCardId = null;
+let pinnedCardId = null;
 
+initCover();
 init();
+
+function initCover() {
+  if (sessionStorage.getItem("tarotCoverSeen") === "1") {
+    coverScreen.hidden = true;
+    return;
+  }
+
+  enterButton.addEventListener("click", () => {
+    coverScreen.hidden = true;
+    sessionStorage.setItem("tarotCoverSeen", "1");
+  });
+}
 
 function init() {
   apiKeyInput.value = localStorage.getItem("geminiApiKey") || "";
@@ -249,9 +268,8 @@ function init() {
     spreadMeaning.textContent = spread.meaning;
     currentCards = [];
     selectedCardId = null;
-    selectedHint.textContent = "抽卡后点击牌面查看";
-    cardMeaning.className = "meaning-content muted";
-    cardMeaning.textContent = "问清楚自己真正想问的事，再抽牌。";
+    pinnedCardId = null;
+    hideCardTooltip();
     aiReading.className = "ai-reading";
     aiReading.textContent = "抽卡后会结合你的问题给出一段完整解读。";
     aiSource.textContent = "Gemini / 本地备用";
@@ -306,10 +324,10 @@ function renderEmptyDeck() {
 async function drawCards() {
   const spread = getSpread();
   selectedCardId = null;
+  pinnedCardId = null;
+  hideCardTooltip();
   drawButton.disabled = true;
   drawButton.textContent = "洗牌中";
-  cardMeaning.className = "meaning-content muted";
-  cardMeaning.textContent = "牌面正在翻开。";
   aiReading.className = "ai-reading loading";
   aiReading.textContent = "等待牌阵稳定后开始解读。";
   aiSource.textContent = "准备中";
@@ -372,9 +390,29 @@ function renderCards(revealed) {
     .join("");
 
   cardStage.querySelectorAll(".tarot-card").forEach((button) => {
-    button.addEventListener("click", () => selectCard(button.dataset.id));
+    const cardId = button.dataset.id;
+
+    button.addEventListener("click", () => {
+      selectCard(cardId);
+      toggleCardTooltip(cardId, button);
+    });
+
+    button.addEventListener("mouseenter", () => {
+      if (!pinnedCardId) showCardTooltip(cardId, button);
+    });
+
+    button.addEventListener("mouseleave", () => {
+      if (!pinnedCardId) hideCardTooltip();
+    });
   });
 }
+
+document.addEventListener("click", (event) => {
+  if (!pinnedCardId) return;
+  if (event.target.closest(".tarot-card") || event.target.closest("#cardTooltip")) return;
+  pinnedCardId = null;
+  hideCardTooltip();
+});
 
 function cardPositionStyle(position, index) {
   const point = position || pos("牌位", 50, 50);
@@ -387,12 +425,62 @@ function selectCard(cardId) {
 
   selectedCardId = cardId;
   renderCards(true);
-  selectedHint.textContent = `${card.position} · ${card.reversed ? "逆位" : "正位"}`;
-  cardMeaning.className = "meaning-content";
-  cardMeaning.innerHTML = `
-    <strong>${card.position}：${card.cnName}（${card.name}）</strong><br>
-    牌组：${card.suit}。${card.note}<br>
-    ${card.reversed ? "逆位" : "正位"}含义：${card.reversed ? card.reversedMeaning : card.uprightMeaning}。
+}
+
+function toggleCardTooltip(cardId, anchorEl) {
+  if (pinnedCardId === cardId) {
+    pinnedCardId = null;
+    hideCardTooltip();
+    return;
+  }
+
+  pinnedCardId = cardId;
+  showCardTooltip(cardId, anchorEl);
+}
+
+function showCardTooltip(cardId, anchorEl) {
+  const card = currentCards.find((item) => item.id === cardId);
+  if (!card) return;
+
+  cardTooltip.innerHTML = buildCardTooltipHtml(card);
+  cardTooltip.hidden = false;
+  positionTooltip(anchorEl);
+}
+
+function hideCardTooltip() {
+  cardTooltip.hidden = true;
+}
+
+function positionTooltip(anchorEl) {
+  const panelRect = spreadPanel.getBoundingClientRect();
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const tipRect = cardTooltip.getBoundingClientRect();
+
+  let left = anchorRect.left - panelRect.left + anchorRect.width / 2 - tipRect.width / 2;
+  let top = anchorRect.top - panelRect.top - tipRect.height - 10;
+
+  if (top < 4) {
+    top = anchorRect.bottom - panelRect.top + 10;
+  }
+
+  left = Math.max(4, Math.min(left, panelRect.width - tipRect.width - 4));
+  top = Math.min(top, panelRect.height - tipRect.height - 4);
+
+  cardTooltip.style.left = `${left}px`;
+  cardTooltip.style.top = `${top}px`;
+}
+
+function buildCardTooltipHtml(card) {
+  const orientationLabel = card.reversed ? "逆位" : "正位";
+  const activeMeaning = card.reversed ? card.reversedMeaning : card.uprightMeaning;
+  const otherLabel = card.reversed ? "正位则更偏向" : "逆位则更偏向";
+  const otherMeaning = card.reversed ? card.uprightMeaning : card.reversedMeaning;
+
+  return `
+    <strong>${card.position} · ${card.cnName}（${card.name}）</strong>
+    牌组：${card.suit}。${card.note}<br><br>
+    ${orientationLabel}：${activeMeaning}。<br>
+    ${otherLabel}：${otherMeaning}。
   `;
 }
 
@@ -417,15 +505,162 @@ async function requestAiReading() {
   aiSource.textContent = "解读中";
 
   try {
-    const data = await requestReading(payload);
+    const freeUsed = getFreeUsed();
+    const freeLimit = getFreeLimit();
+    let data;
+
+    if (freeUsed < freeLimit) {
+      data = await requestReading(payload);
+      incrementFreeUsed();
+    } else {
+      data = await requestGptReading(payload);
+    }
+
     aiReading.className = "ai-reading";
     aiReading.textContent = data.text || "暂时没有生成解读，请重新抽牌试试。";
-    aiSource.textContent = data.source === "gemini" ? "Gemini" : data.source === "browser-gemini" ? "Gemini 浏览器直连" : "本地备用";
-  } catch {
+    aiSource.textContent = describeSource(data.source);
+  } catch (error) {
     aiReading.className = "ai-reading";
-    aiReading.textContent = "AI 暂时没有响应。可以检查 Gemini API Key 是否正确，或稍后重新抽牌。";
+    aiReading.textContent = error.message || "AI 暂时没有响应，可以稍后重新抽牌。";
     aiSource.textContent = "连接失败";
   }
+}
+
+function describeSource(source) {
+  if (source === "gemini") return "Gemini";
+  if (source === "browser-gemini") return "Gemini 浏览器直连";
+  if (source === "gpt") return "GPT（兑换码）";
+  return "本地备用";
+}
+
+function getFreeUsed() {
+  return Number(localStorage.getItem("tarotFreeUsed") || "0");
+}
+
+function getFreeLimit() {
+  const bonus = localStorage.getItem("tarotFeedbackGiven") === "1" ? FREE_LIMIT_BONUS : 0;
+  return FREE_LIMIT_BASE + bonus;
+}
+
+function incrementFreeUsed() {
+  localStorage.setItem("tarotFreeUsed", String(getFreeUsed() + 1));
+}
+
+async function requestGptReading(payload) {
+  if (localStorage.getItem("tarotFeedbackGiven") !== "1") {
+    const gaveFeedback = await promptFeedback();
+    if (gaveFeedback) {
+      incrementFreeUsed();
+      return requestReading(payload);
+    }
+  }
+
+  const code = await promptRedeemCode();
+  if (!code) {
+    throw new Error("免费次数用完了，需要兑换码才能继续用 GPT 解读。");
+  }
+
+  const response = await fetch("/api/gpt-reading", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, code })
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "兑换码校验失败");
+  }
+
+  localStorage.setItem("tarotRedeemCode", code);
+  return data;
+}
+
+function promptFeedback() {
+  return new Promise((resolve) => {
+    gateModal.hidden = false;
+    gateTitle.textContent = "免费次数用完啦";
+    gateBody.innerHTML = `
+      <p>为了帮助我们持续优化产品体验，恳请您留下宝贵反馈——无论是发现的问题，还是您认为做得好的地方。填写后即可解锁 2 次免费解读。</p>
+      <textarea id="feedbackInput" maxlength="300" placeholder="至少写 6 个字才算数～"></textarea>
+      <p class="gate-error" id="feedbackError" hidden></p>
+      <div class="gate-actions">
+        <button id="feedbackSkip" type="button" class="ghost">跳过，直接输入兑换码</button>
+        <button id="feedbackSubmit" type="button">提交，领取2次</button>
+      </div>
+    `;
+
+    const errorEl = gateBody.querySelector("#feedbackError");
+
+    gateBody.querySelector("#feedbackSkip").addEventListener("click", () => {
+      gateModal.hidden = true;
+      resolve(false);
+    });
+
+    gateBody.querySelector("#feedbackSubmit").addEventListener("click", async () => {
+      const input = gateBody.querySelector("#feedbackInput");
+      const text = input.value.trim();
+      if (text.length <= 5) {
+        errorEl.textContent = "再多写几个字吧，至少 6 个字。";
+        errorEl.hidden = false;
+        input.focus();
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+
+        if (response.ok) {
+          localStorage.setItem("tarotFeedbackGiven", "1");
+          gateModal.hidden = true;
+          resolve(true);
+        } else {
+          errorEl.textContent = "提交失败，请重试，或直接跳过输兑换码。";
+          errorEl.hidden = false;
+        }
+      } catch {
+        errorEl.textContent = "网络出错了，请重试，或直接跳过输兑换码。";
+        errorEl.hidden = false;
+      }
+    });
+  });
+}
+
+function promptRedeemCode() {
+  return new Promise((resolve) => {
+    gateModal.hidden = false;
+    gateTitle.textContent = "输入兑换码继续";
+    const savedCode = localStorage.getItem("tarotRedeemCode") || "";
+    gateBody.innerHTML = `
+      <p>免费次数已经用完，输入兑换码即可继续用 GPT 解读。</p>
+      <input id="redeemInput" type="text" placeholder="例如 TAROT-XXXXXXXX" value="${savedCode}" />
+      <p class="gate-error" id="redeemError" hidden></p>
+      <div class="gate-actions">
+        <button id="redeemCancel" type="button" class="ghost">取消</button>
+        <button id="redeemSubmit" type="button">确认使用</button>
+      </div>
+    `;
+
+    gateBody.querySelector("#redeemCancel").addEventListener("click", () => {
+      gateModal.hidden = true;
+      resolve(null);
+    });
+
+    gateBody.querySelector("#redeemSubmit").addEventListener("click", () => {
+      const code = gateBody.querySelector("#redeemInput").value.trim().toUpperCase();
+      if (!code) {
+        const errorEl = gateBody.querySelector("#redeemError");
+        errorEl.textContent = "请输入兑换码。";
+        errorEl.hidden = false;
+        return;
+      }
+      gateModal.hidden = true;
+      resolve(code);
+    });
+  });
 }
 
 async function requestReading(payload) {
@@ -470,7 +705,8 @@ async function requestBrowserGemini(payload, apiKey) {
           contents: [{ parts: [{ text: buildBrowserPrompt(payload) }] }],
         generationConfig: {
           temperature: 0.85,
-          maxOutputTokens: 1300
+          maxOutputTokens: 3000,
+          thinkingConfig: { thinkingBudget: 0 }
         }
       })
       });
@@ -539,7 +775,7 @@ function buildLocalBrowserReading(payload) {
   const last = cards[cards.length - 1] || first;
   if (!first) return "请先抽牌。";
 
-  return `基础解读：围绕“${question}”，这组牌提示你先看清自己真正想要什么。${first.position}的「${first.cnName}」说明起点在于${first.reversed ? first.reversedMeaning : first.uprightMeaning}；最后的「${last.cnName}」则建议你把注意力放在${last.reversed ? last.reversedMeaning : last.uprightMeaning}。`;
+  return `基础解读：围绕"${question}"，这组牌提示你先看清自己真正想要什么。${first.position}的「${first.cnName}」说明起点在于${first.reversed ? first.reversedMeaning : first.uprightMeaning}；最后的「${last.cnName}」则建议你把注意力放在${last.reversed ? last.reversedMeaning : last.uprightMeaning}。`;
 }
 
 function shuffle(items) {
